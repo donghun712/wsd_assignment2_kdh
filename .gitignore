@@ -1,0 +1,16 @@
+# Build
+/build
+/.gradle
+
+# IDE
+/.idea
+*.iml
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+*.pem
+*.ppk
