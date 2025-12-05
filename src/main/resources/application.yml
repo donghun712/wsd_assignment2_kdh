@@ -11,11 +11,12 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+    show-sql: true          # 콘솔에 SQL 출력
+    open-in-view: false
     properties:
       hibernate:
-        format_sql: true
-        show_sql: true
-    open-in-view: false
+        format_sql: true    # SQL 보기 좋게 포맷팅
+        default_batch_fetch_size: 100  # N+1 완화용 배치 사이즈
 
   flyway:
     enabled: true
@@ -24,3 +25,9 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace  # 바인딩 파라미터까지 로그로 보고 싶을 때
+
+jwt:
+  secret: ${JWT_SECRET:your_jwt_secret_key_here}
+  access-token-exp: ${JWT_ACCESS_TOKEN_EXP:1800}
+  refresh-token-exp: ${JWT_REFRESH_TOKEN_EXP:604800}
