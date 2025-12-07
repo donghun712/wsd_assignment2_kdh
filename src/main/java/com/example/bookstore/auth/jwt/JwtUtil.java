@@ -1,11 +1,11 @@
 package com.example.bookstore.auth.jwt;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import io.github.cdimascio.dotenv.Dotenv;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
@@ -13,68 +13,75 @@ import java.util.Date;
 public class JwtUtil {
 
     private final Key key;
-    private final long accessTokenExp;
-    private final long refreshTokenExp;
+    private final long accessTokenValidityMs;
+    private final long refreshTokenValidityMs;
 
-    public JwtUtil() {
+    public JwtUtil(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.access-token-validity-ms}") long accessTokenValidityMs,
+            @Value("${jwt.refresh-token-validity-ms}") long refreshTokenValidityMs
+    ) {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalArgumentException("JWT secret 은 최소 32자 이상이어야 합니다.");
+        }
 
-        // ★★★ 여기에서 .env 파일 읽는다 ★★★
-        Dotenv dotenv = Dotenv.load();
-
-        String secret = dotenv.get("JWT_SECRET");
-        long accessExp = Long.parseLong(dotenv.get("JWT_ACCESS_TOKEN_EXP"));
-        long refreshExp = Long.parseLong(dotenv.get("JWT_REFRESH_TOKEN_EXP"));
-
-        this.key = Keys.hmacShaKeyFor(secret.getBytes());
-        this.accessTokenExp = accessExp * 1000;   // 초 → ms
-        this.refreshTokenExp = refreshExp * 1000; // 초 → ms
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.accessTokenValidityMs = accessTokenValidityMs;
+        this.refreshTokenValidityMs = refreshTokenValidityMs;
     }
 
     public String generateAccessToken(Long userId, String role) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + accessTokenExp);
+        Date expiry = new Date(now.getTime() + accessTokenValidityMs);
 
         return Jwts.builder()
-                .setSubject(String.valueOf(userId))
+                .setSubject(String.valueOf(userId))   // sub = userId
                 .claim("role", role)
                 .setIssuedAt(now)
-                .setExpiration(expiration)
-                .signWith(key)
+                .setExpiration(expiry)
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public String generateRefreshToken(Long userId, String role) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + refreshTokenExp);
+        Date expiry = new Date(now.getTime() + refreshTokenValidityMs);
 
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))
                 .claim("role", role)
                 .setIssuedAt(now)
-                .setExpiration(expiration)
-                .signWith(key)
+                .setExpiration(expiry)
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token);   // 서명 검증 + Claims 파싱
+            parseClaims(token);
             return true;
-        } catch (Exception e) {
+        } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
 
-    public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
+    public Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
 
-        return Long.valueOf(claims.getSubject());
+    public Long getUserId(String token) {
+        Claims claims = parseClaims(token);
+        String sub = claims.getSubject();
+        return Long.parseLong(sub);
+    }
+
+    public String getRole(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get("role", String.class);
     }
 }
+

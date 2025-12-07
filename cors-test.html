@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<body>
+    <h1>CORS 테스트 페이지</h1>
+
+    <button id="btn">GET /api/books 호출</button>
+
+    <pre id="output"></pre>
+
+    <script>
+        document.getElementById("btn").onclick = async function () {
+            const output = document.getElementById("output");
+
+            try {
+                const res = await fetch("http://localhost:8080/api/books", {
+                    method: "GET",
+                });
+
+                const text = await res.text();
+                output.innerText = "응답 성공:\n" + text;
+
+            } catch (e) {
+                output.innerText = "CORS 에러 또는 네트워크 에러:\n" + e;
+            }
+        };
+    </script>
+</body>
+</html>

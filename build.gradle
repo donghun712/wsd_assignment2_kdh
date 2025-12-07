@@ -3,6 +3,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
+        // Flyway에서 사용하는 MySQL 드라이버 (버전 명시)
         classpath 'com.mysql:mysql-connector-j:9.1.0'
     }
 }
@@ -13,7 +14,6 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.flywaydb.flyway' version '10.20.1'
 }
-
 
 java {
     toolchain {
@@ -26,29 +26,44 @@ repositories {
 }
 
 dependencies {
+    // === Spring 기본 스타터들 ===
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // 환경변수(.env) 지원
     implementation 'io.github.cdimascio:dotenv-java:2.2.4'
 
+    // === JWT ===
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
+    // === DB 드라이버 ===
     implementation 'com.mysql:mysql-connector-j'
 
+    // === Lombok ===
     implementation 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+    // === Swagger / OpenAPI (Spring Boot 3.4.x 호환 버전) ===
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
 
+    // === Flyway ===
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-mysql'
 
+    // === Test ===
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // (나중에 시큐리티 테스트 쓸 거면)
+    // testImplementation 'org.springframework.security:spring-security-test'
 }
 
 tasks.named('test') {
-    enabled = false
+     // ✅ 테스트 실행 활성화
+    enabled = true
+
+    // ✅ JUnit5 (Jupiter) 플랫폼 사용
+    useJUnitPlatform()
 }

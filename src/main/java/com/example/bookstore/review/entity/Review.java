@@ -45,4 +45,14 @@ public class Review {
             createdAt = LocalDateTime.now();
         }
     }
+
+    // ✅ 리뷰 수정에 필요: rating/content 변경 메서드 추가
+
+    public void setRating(int rating) {
+        this.rating = rating;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
 }

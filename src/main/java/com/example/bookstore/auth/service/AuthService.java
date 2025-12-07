@@ -2,6 +2,7 @@ package com.example.bookstore.auth.service;
 
 import com.example.bookstore.auth.dto.LoginRequest;
 import com.example.bookstore.auth.dto.LoginResponse;
+import com.example.bookstore.auth.dto.RefreshTokenRequest;
 import com.example.bookstore.auth.dto.SignupRequest;
 import com.example.bookstore.auth.dto.SignupResponse;
 import com.example.bookstore.auth.jwt.JwtUtil;
@@ -13,43 +14,43 @@ import com.example.bookstore.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;   // ✅ JWT 유틸 주입
+    private final JwtUtil jwtUtil;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtUtil jwtUtil) {          // ✅ 생성자에서 같이 받기
+                       JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
 
-    // 회원가입
+    /**
+     * 회원가입
+     */
     public SignupResponse signup(SignupRequest request) {
 
-        Optional<User> existing = userRepository.findByEmail(request.getEmail());
-        if (existing.isPresent()) {
+        // 이미 가입된 이메일인지 확인
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new BusinessException(
                     ErrorCode.DUPLICATE_RESOURCE,
                     Map.of("email", "이미 가입된 이메일입니다.")
             );
         }
 
-        User user = new User();
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setName(request.getName());
-        user.setRole(Role.ROLE_USER);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+        // User 엔티티 생성 + 비밀번호 암호화
+        User user = new User(
+                request.getEmail(),
+                passwordEncoder.encode(request.getPassword()),
+                request.getName(),
+                Role.ROLE_USER   // 기본 USER 롤
+        );
 
         User saved = userRepository.save(user);
 
@@ -61,7 +62,9 @@ public class AuthService {
         );
     }
 
-    // 로그인
+    /**
+     * 로그인: 이메일/비밀번호 검증 후 액세스/리프레시 토큰 발급
+     */
     public LoginResponse login(LoginRequest request) {
 
         // 1) 이메일로 유저 찾기
@@ -79,7 +82,7 @@ public class AuthService {
             );
         }
 
-        // 3) JWT 발급 (여기서 jwtUtil 사용)
+        // 3) JWT 발급
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole().name());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getRole().name());
 
@@ -87,6 +90,46 @@ public class AuthService {
                 user.getId(),
                 accessToken,
                 refreshToken
+        );
+    }
+
+    /**
+     * 리프레시 토큰으로 액세스 토큰 재발급
+     */
+    public LoginResponse refresh(RefreshTokenRequest request) {
+
+        String refreshToken = request.getRefreshToken();
+
+        // 1) 토큰 유효성 검사
+        if (!jwtUtil.validateToken(refreshToken)) {
+            throw new BusinessException(
+                    ErrorCode.UNAUTHORIZED,
+                    Map.of("token", "유효하지 않은 리프레시 토큰입니다.")
+            );
+        }
+
+        // 2) 토큰에서 유저 정보 추출
+        Long userId = jwtUtil.getUserId(refreshToken);
+        String roleFromToken = jwtUtil.getRole(refreshToken); // "ROLE_USER" 등
+
+        // 3) 실제 유저 존재 여부 확인
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.USER_NOT_FOUND,
+                        Map.of("userId", "존재하지 않는 사용자입니다.")
+                ));
+
+        // 4) 새 액세스 토큰 발급
+        //    (role은 토큰에서 꺼낸 값이나 user.getRole().name() 둘 다 가능)
+        String newAccessToken = jwtUtil.generateAccessToken(user.getId(), roleFromToken);
+
+        // 5) 리프레시 토큰은 그대로 반환 (원하면 여기서 새로 발급해도 됨)
+        String newRefreshToken = refreshToken;
+
+        return new LoginResponse(
+                user.getId(),
+                newAccessToken,
+                newRefreshToken
         );
     }
 }

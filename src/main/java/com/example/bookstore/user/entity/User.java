@@ -1,6 +1,8 @@
 package com.example.bookstore.user.entity;
 
 import jakarta.persistence.*;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,27 +24,79 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private Role role;
+    private Role role; // ROLE_USER, ROLE_ADMIN
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    @Column(columnDefinition = "TEXT")
+    private String address;
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", length = 10)
+    private Gender gender;
+
+    @Column(name = "region", length = 100)
+    private String region;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_status", length = 20, nullable = false)
+    private UserStatus userStatus = UserStatus.ACTIVE;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    // JPA 기본 생성자
-    public User() {
+    protected User() {
     }
 
-    // 회원가입 등에 사용할 편의 생성자 (선택)
     public User(String email, String password, String name, Role role) {
         this.email = email;
         this.password = password;
         this.name = name;
         this.role = role;
+        this.userStatus = UserStatus.ACTIVE;
     }
 
-    // ======== getter / setter ========
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+        if (this.userStatus == null) {
+            this.userStatus = UserStatus.ACTIVE;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // --- 도메인 메서드 ---
+
+    public void updateProfile(String name,
+                              String phoneNumber,
+                              String address,
+                              String region,
+                              Gender gender) {
+        if (name != null) this.name = name;
+        if (phoneNumber != null) this.phoneNumber = phoneNumber;
+        if (address != null) this.address = address;
+        if (region != null) this.region = region;
+        if (gender != null) this.gender = gender;
+    }
+
+    public void deactivate() {
+        this.userStatus = UserStatus.INACTIVE;
+    }
+
+    // --- getter / setter ---
 
     public Long getId() {
         return id;
@@ -51,6 +105,7 @@ public class User {
     public String getEmail() {
         return email;
     }
+
     public void setEmail(String email) {
         this.email = email;
     }
@@ -58,6 +113,7 @@ public class User {
     public String getPassword() {
         return password;
     }
+
     public void setPassword(String password) {
         this.password = password;
     }
@@ -65,6 +121,7 @@ public class User {
     public String getName() {
         return name;
     }
+
     public void setName(String name) {
         this.name = name;
     }
@@ -72,40 +129,64 @@ public class User {
     public Role getRole() {
         return role;
     }
+
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public LocalDate getBirthDate() {
+        return birthDate;
+    }
+
+    public void setBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
+    }
+
+    public Gender getGender() {
+        return gender;
+    }
+
+    public void setGender(Gender gender) {
+        this.gender = gender;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
+    }
+
+    public UserStatus getUserStatus() {
+        return userStatus;
+    }
+
+    public void setUserStatus(UserStatus userStatus) {
+        this.userStatus = userStatus;
     }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
-    }
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    // ======== JPA lifecycle 콜백 ========
-
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-
-        // role이 비어 있으면 기본 ROLE_USER로
-        if (this.role == null) {
-            this.role = Role.ROLE_USER;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 }
